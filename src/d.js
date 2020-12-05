@@ -13,8 +13,8 @@ import { GlitchPass } from "three/examples/jsm/postprocessing/GlitchPass.js";
 import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
 
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
-import { FaceMeshFaceGeometry } from "./FaceMeshFaceGeometry/face.js";
-import { FACES as indices  } from "./FaceMeshFaceGeometry/geometry.js";
+
+import TWEEN from "tween"
 import TTFLoader from './TTFLoader';
 const loader = new TTFLoader();
 const fontLoader = new THREE.FontLoader();
@@ -24,21 +24,17 @@ const fontName = "/fonts/FugazOne-Regular.ttf";//Jackerton-Free-Regular.otf";
 
 
 tf.setBackend('webgl');
-const WIDTH = 640.0;
-const HEIGHT = 480.0;
+const WIDTH = window.innerWidth;
+const HEIGHT = window.innerHeight;
 let MODEL = null;
 let FACE_MODEL = null;
-
+const BACKGROUND = 0x1d3557;
+const TEXT_COLOR = 0xe63946;
 (async () => {
-  MODEL = await blazeface.load();
+  MODEL =null;//await blazeface.load();
 })();
 
-const faceLandmarksDetection = require('@tensorflow-models/face-landmarks-detection');
-(async()=>{
-  FACE_MODEL = await faceLandmarksDetection.load(
-    faceLandmarksDetection.SupportedPackages.mediapipeFacemesh,{maxFaces:1});
-
-})();
+const faceLandmarksDetection = null;
 
 function createMaterial(type, color) {
   let mat =
@@ -95,13 +91,44 @@ function createMaterial(type, color) {
   return mat;
 }
 
+var dayz = 0;
+var hourz = 0;
+var minutez = 0;
+var secondz = 0;
+function secondsToDhms(seconds) {
+  seconds = Number(seconds);
+  const dayzTemp = Math.floor(seconds / (3600*24));
+  const hourzTemp = Math.floor(seconds % (3600*24) / 3600);
+  const minutezTemp = Math.floor(seconds % 3600 / 60);
+  const secondzTemp = Math.floor(seconds % 60);
+
+  if (dayzTemp != dayz){
+    dayz = dayzTemp;
+  }
+  if (hourzTemp != hourz){
+    hourz = hourzTemp;
+  }
+  if (minutezTemp != minutez){
+    minutez = minutezTemp;
+  }
+  if (secondzTemp != secondz){
+    secondz = secondzTemp;
+  }
+  updateTime = true;
+}
+
 const darkMaterial = createMaterial("basic", 0x000000);
 
 
 
 
 const style = document.createElement("style");
-style.innerHTML = `ul {
+style.innerHTML = `
+  body{
+    margin:0px;
+  }
+
+  ul {
     list-style-type: none;
     margin: 0 0 5 0;
     padding: 0;
@@ -117,7 +144,7 @@ style.innerHTML = `ul {
     display: block;
     color: white;
     text-align: center;
-    padding: 16px;
+    /*padding: 16px;*/
     text-decoration: none;
   }
 
@@ -142,25 +169,25 @@ document.head.appendChild(style);
 
 const menu = document.createElement("ul");
 menu.innerHTML = `<li><a href="#home">Home</a></li><li><a href="#a">A</a></li>`;
-document.body.appendChild(menu);
+//document.body.appendChild(menu);
 
 const btn = document.createElement("button");
 btn.innerHTML = "Start";
 btn.id = "btnStart";
 btn.style = "float: right;";
-document.body.appendChild(btn);
+//document.body.appendChild(btn);
 
 const btnPlus = document.createElement("button");
 btnPlus.innerHTML = "+";
 btnPlus.id = "btnPlus";
 btnPlus.style = "float: right;";
-document.body.appendChild(btnPlus);
+//document.body.appendChild(btnPlus);
 
 const btnMinus = document.createElement("button");
 btnMinus.innerHTML = "-";
 btnMinus.id = "btnMinus";
 btnMinus.style = "float: right;";
-document.body.appendChild(btnMinus);
+//document.body.appendChild(btnMinus);
 
 const video = document.createElement("video");
 video.style = "float:left;display:none;";
@@ -195,10 +222,10 @@ const drawRect = (contxt, x1, y1, x2, y2) => {
   contxt.stroke();
 };
 
-let state = 0;
+let state = 2;
 
 // starting --------------------------------------------------------
-btn.addEventListener("click", async () => {
+ (async () => {
   btnPlus.addEventListener("click", () => {
     state = state < 2 ? state + 1 : state;
   });
@@ -207,17 +234,17 @@ btn.addEventListener("click", async () => {
     state = state > 0 ? state - 1 : state;
   });
 
-  const stream = await navigator.mediaDevices.getUserMedia({
-    audio: false,
-    video: {
-      facingMode: "user",
-      width: WIDTH,
-      height: HEIGHT,
-    },
-  });
+  // const stream =  null;await navigator.mediaDevices.getUserMedia({
+  //   audio: false,
+  //   video: {
+  //     facingMode: "user",
+  //     width: WIDTH,
+  //     height: HEIGHT,
+  //   },
+  // });
 
-  video.srcObject = stream;
-  await video.play();
+  // video.srcObject = stream;
+  //await video.play();
 
   //SELECTIVE BLOOM PRESERVING RENDER TARGET BACKGROUND CLEARCOLOR
   const ENTIRE_SCENE = 0,
@@ -243,7 +270,7 @@ btn.addEventListener("click", async () => {
     1000
   );
 
-  camera.position.z = WIDTH ;
+  camera.position.z = WIDTH / 2.0;
   camera.lookAt(new THREE.Vector3(0.0, 0.0, 0.0));
   // camera.zoom = 1.0;
 
@@ -276,21 +303,21 @@ btn.addEventListener("click", async () => {
 
 
 
-  const cgeom = new THREE.PlaneGeometry(WIDTH, HEIGHT);// new THREE.CircleGeometry( WIDTH*0.25, 32 );
+  const cgeom = new THREE.PlaneGeometry( WIDTH*.5,HEIGHT*.5);
   const material = new THREE.MeshBasicMaterial( { color: 0xffff00 } );
-  const circle = new THREE.Mesh( new THREE.CircleGeometry( WIDTH*0.15, 32 ), material );
+  const circle = new THREE.Mesh( cgeom, material );
   //scene.add( circle );
 
   var imageObject = new THREE.Mesh(
     cgeom,
     new THREE.MeshBasicMaterial({ map: texture }),);
 
-  imageObject.position.setZ(-150);
-  scene.add(imageObject);
+
+  //scene.add(imageObject);
 
   var plane = new THREE.Mesh(geometry, shaderMaterial);
   //Below enables the sobel filter which ends up removing our geometry because we dont render it to the target
-  //scene.add(plane);
+  scene.add(plane);
 
   gl_div.appendChild(renderer.domElement);
   gl_div.appendChild(canv);
@@ -299,14 +326,14 @@ btn.addEventListener("click", async () => {
   //TODO: reenable to render to screen
   //effcomposer.addPass(renderPass);
 
-  //let sobelPass = new ShaderPass(sobelShader);
-  //sobelPass.renderToScreen = false;
+  let sobelPass = new ShaderPass(sobelShader);
+  sobelPass.renderToScreen = false;
   //effcomposer.addPass(sobelPass);
 
   var glitchPass = new GlitchPass();
   glitchPass.renderToScreen = true;
   //TODO: reenable on appropriate composer
-  // effcomposer.addPass(glitchPass);
+  //effcomposer.addPass(glitchPass);
 
 
   var fxaaPass = new ShaderPass( FXAAShader );
@@ -331,8 +358,12 @@ btn.addEventListener("click", async () => {
     window.innerWidth * window.devicePixelRatio,
     window.innerHeight * window.devicePixelRatio
   );
+
   bloomComposer.addPass(renderPass);
+  //bloomComposer.addPass(sobelPass);
+  //bloomComposer.addPass(glitchPass);
   bloomComposer.addPass(bloomPass);
+  
 
   var finalPass = new ShaderPass(
   new THREE.ShaderMaterial({
@@ -364,6 +395,7 @@ btn.addEventListener("click", async () => {
   );
   finalComposer.addPass(renderPass);
   finalComposer.addPass(finalPass);
+  finalComposer.addPass(glitchPass);
 
   var materials = {};
   function renderBloom() {
@@ -383,16 +415,17 @@ btn.addEventListener("click", async () => {
       obj.material = materials[obj.uuid];
       delete materials[obj.uuid];
     }
-    renderer.setClearColor(0x332233);
+    renderer.setClearColor(BACKGROUND);
   }
 
   let d = 0;
-
+  let font = null;
   var textGeo;
   var textMesh1;
-  const height = 1,
-        size = 80,
-        hover = 30,
+  const textMaterial = createMaterial('basic', TEXT_COLOR) ;
+  const height = 10,
+        size = 160,
+        hover = -80,
 
         curveSegments = 64,
 
@@ -401,8 +434,8 @@ btn.addEventListener("click", async () => {
         bevelEnabled = false;
   (async () => {
     await loader.load(fontName,fnt =>{
-      var font = fontLoader.parse(fnt)
-      textGeo = new THREE.TextGeometry( '1st', {
+      font = fontLoader.parse(fnt)
+      textGeo = new THREE.TextGeometry( 'MUTE', {
         font: font,
       // size: 100,
        
@@ -427,7 +460,7 @@ btn.addEventListener("click", async () => {
     const centerOffset = - 0.5 * ( textGeo.boundingBox.max.x - textGeo.boundingBox.min.x );
 
 
-    var textMaterial = createMaterial('basic', 0xc4f735) ;
+   
     // new THREE.MeshBasicMaterial( 
     //     { color: 0xc4f735 }
     // );
@@ -454,9 +487,6 @@ btn.addEventListener("click", async () => {
   textMesh1.layers.enable(BLOOM_SCENE);
   scene.add( textMesh1 );
 
-  // const rot = new THREE.Matrix4().makeRotationX(-Math.PI / 4);
-  // textMesh1.geometry.applyMatrix4(rot);
-
   //console.log(fontMesh.position);
 
 
@@ -468,40 +498,36 @@ btn.addEventListener("click", async () => {
 
   })();
 
-  const faceGeometry = new FaceMeshFaceGeometry({ useVideoTexture: false });
-  faceGeometry.setSize(WIDTH, HEIGHT);
+  var currentTime = Math.floor(Date.now() / 1000)
+  var updateTime = false;
+  setInterval(function(){
+    const newTime = Math.floor(Date.now() / 1000);
+    if (newTime - currentTime >= 1 ){
+       currentTime = newTime;
+       updateTime = true;
+    }
+    secondsToDhms(newTime);
+  }, 500)
 
-  const rightEye = new THREE.Mesh(new THREE.BoxBufferGeometry(1, 1, 1), createMaterial('basic', 0xc4f735));
-  rightEye.castShadow = rightEye.receiveShadow = true;
-  
-   //TODO: if tracking face mesh
-  //scene.add(rightEye);
-  rightEye.scale.setScalar(20);
-
-  function drawPath(ctx, points, closePath) {
-  const region = new Path2D();
-  region.moveTo(points[0][0], points[0][1]);
-  for (let i = 1; i < points.length; i++) {
-    const point = points[i];
-    region.lineTo(point[0], point[1]);
-  }
-
-  if (closePath) {
-    region.closePath();
-  }
-  ctx.stroke(region);
-  }
-
-
+  let then = 0;
+  var clock = new THREE.Clock();
  
+  async function animate(now) {
+    //now *= 0.001;  // make it seconds
 
-  async function animate() {
-    const faces = await MODEL.estimateFaces(video, false);
-     
+    //const delta = now - then;
+    //then = now;
+    //delta = clock.getDelta();
+    const faces = null;// await MODEL.estimateFaces(video, false);
+    //  const predictions = await FACE_MODEL.estimateFaces({
+    //     input: video ,  
+    //   returnTensors: false,
+    // flipHorizontal: false,
+    // predictIrises: state.predictIrises});
     canv.getContext("2d").clearRect(0, 0, WIDTH, HEIGHT);
 
     if (faces && faces[0] && state) {
-      d = Math.abs(320 - faces[0].landmarks[2][0]) / 320.0;
+      d = Math.abs(400 - faces[0].landmarks[2][0]) / 400.0;
 
       if (state > 1) {
         faces[0].landmarks.map((lm) => {
@@ -522,127 +548,86 @@ btn.addEventListener("click", async () => {
           Math.round(faces[0].bottomRight[1])
         );
       }
-
       const vector = new THREE.Vector3();
-      const scale =  ((faces[0].bottomRight[0] - faces[0].topLeft[0])/(WIDTH/2));
-      textMesh1.scale.set(scale,scale,1);
-
-      const scaleOffset =  textMesh1.position.clone().multiplyScalar(scale);
+      const centerOffsetX = - 0.5 * ( textGeo.boundingBox.max.x - textGeo.boundingBox.min.x );
+      const centerOffsetY = - 0.5 * ( textGeo.boundingBox.max.y- textGeo.boundingBox.min.y );
+      vector.set( faces[0].landmarks[3][0] - (WIDTH/2) + centerOffsetX, 
+        faces[0].landmarks[3][1] * -1 + HEIGHT/2 + centerOffsetY , ( camera.near + camera.far ) / ( camera.near - camera.far ) );
       
-      const centerOffsetX = (- 0.5 * ( textGeo.boundingBox.max.x - textGeo.boundingBox.min.x ))*scale;
-      const centerOffsetY = (- 0.5 * ( textGeo.boundingBox.max.y- textGeo.boundingBox.min.y ))*scale;
-      //vector.set( faces[0].landmarks[3][0] - (WIDTH/2) + centerOffsetX, 
-      //  faces[0].landmarks[3][1] * -1 + HEIGHT/2 + centerOffsetY , ( camera.near + camera.far ) / ( camera.near - camera.far ) );
-       vector.set( (faces[0].topLeft[0]- (WIDTH/2) +centerOffsetX) , 
-        (faces[0].topLeft[1] * -1 + HEIGHT/2 + centerOffsetY ) , ( camera.near + camera.far ) / ( camera.near - camera.far ) );
       //TODO: scale text with bounding box size 
       // var sizeH = boxH.getSize(); // get the size of the bounding box of the house
       // var sizeO = boxO.getSize(); // get the size of the bounding box of the obj
       // var ratio = sizeH.divide( sizeO )
+      // textMesh1.scale(1/ratio);
+
+      //textMesh1.position.copy(vector);
+    }else{
+      //textMesh1.position.copy(new THREE.Vector3()  );
+    }
+
+    if(updateTime){
+        updateTime = false;
+        textMesh1.geometry.dispose();
+        //textMesh1.material.dispose();
+        scene.remove(textMesh1);
+
+
+      textGeo = new THREE.TextGeometry( secondz + "" , {
+        font: font,
+      // size: 100,
+       
+      // curveSegments: 32,
+      // bevelEnabled: true,
+      // bevelThickness: 6,
+      // bevelSize: 2.5,
+      // bevelOffset: 0,
+      // bevelSegments: 8,
+                size: size,
+          height: height,
+          curveSegments: curveSegments,
+
+          bevelThickness: bevelThickness,
+          bevelSize: bevelSize,
+          bevelEnabled: bevelEnabled
+    } );
+
+      textGeo.computeBoundingBox();
+      textGeo.computeVertexNormals();
       
-      console.log("SCALE:",scale, textMesh1.position);
-      textMesh1.position.copy(vector);
-     
+      const centerOffset = - 0.5 * ( textGeo.boundingBox.max.x - textGeo.boundingBox.min.x );
+
+
+      // new THREE.MeshBasicMaterial( 
+      //     { color: 0xc4f735 }
+      // );
+      textGeo = new THREE.BufferGeometry().fromGeometry( textGeo );
+
+    //setGradient(textGeo, cols, 'z', rev);
+    // var mat = new THREE.MeshBasicMaterial({
+    //   vertexColors: THREE.VertexColors,
+    //   wireframe: false
+    // });
+    // var obj = new THREE.Mesh(textGeo, mat);
+    //scene.add(obj);
+    textMesh1 = new THREE.Mesh( textGeo, textMaterial );
+
+          textMesh1.position.x = centerOffset;
+          textMesh1.position.y = hover;
+          textMesh1.position.z = 0;
+
+          textMesh1.rotation.x = 0;
+          //textMesh1.rotation.y = Math.PI * 2;
+
+
+    // //var fontMesh = new THREE.Mesh( textGeometry, textMaterial );
+    textMesh1.layers.enable(BLOOM_SCENE);
+    scene.add( textMesh1 );
 
     }
-    var predictions = null;
-     if(!faces){
-       predictions = await FACE_MODEL.estimateFaces({
-          input: video ,  
-        returnTensors: false,
-      flipHorizontal: false,
-      predictIrises: false});
-     }
-    if (!faces && predictions.length > 0) {
-      predictions.forEach(prediction => {
-        faceGeometry.update(prediction, false);
-        const trackRightEye = faceGeometry.track(417, 445, 450);
-        rightEye.position.copy(trackRightEye.position);
-        rightEye.rotation.setFromRotationMatrix(trackRightEye.rotation);
-
-        const trackHalo = faceGeometry.track(10, 251, 21);
-       
-        
-
-         const trackChin = faceGeometry.track(208, 428, 175);
-
-           //nose
-          const track = faceGeometry.track(5, 45, 275);
-
-          textMesh1.position.copy(trackHalo.position);
-        //textMesh1.rotation.setFromRotationMatrix(trackHalo.rotation);
-        const centerOffset = - 0.5 * ( textGeo.boundingBox.max.x - textGeo.boundingBox.min.x );
-          textMesh1.position.setX(textMesh1.position.x + centerOffset);
-
-          //https://github.com/spite/FaceMeshFaceGeometry/blob/372b9e6a824af057e1a2e40b6c3b2827c7c0d410/examples/video/main.js#L207
-         
-      const keypoints = prediction.scaledMesh;
-        const GREEN = '#32EEDB';
-       const ctx = canv.getContext("2d")
-        ctx.fillStyle = GREEN;
-         const NUM_KEYPOINTS = 468;
-       
-
-
-        ctx.strokeStyle = GREEN;
-        ctx.lineWidth = 0.5;
-
-        for (let i = 0; i < indices.length / 3; i++) {
-          const points = [
-            indices[i * 3], indices[i * 3 + 1],
-            indices[i * 3 + 2]
-          ].map(index => keypoints[index]);
-
-          //TODO: enable to see triangles on face
-          //drawPath(ctx, points, true);
-        }
-      });
-    /*
-    `predictions` is an array of objects describing each detected face, for example:
- 
-    [
-      {
-        faceInViewConfidence: 1, // The probability of a face being present.
-        boundingBox: { // The bounding box surrounding the face.
-          topLeft: [232.28, 145.26],
-          bottomRight: [449.75, 308.36],
-        },
-        mesh: [ // The 3D coordinates of each facial landmark.
-          [92.07, 119.49, -17.54],
-          [91.97, 102.52, -30.54],
-          ...
-        ],
-        scaledMesh: [ // The 3D coordinates of each facial landmark, normalized.
-          [322.32, 297.58, -17.54],
-          [322.18, 263.95, -30.54]
-        ],
-        annotations: { // Semantic groupings of the `scaledMesh` coordinates.
-          silhouette: [
-            [326.19, 124.72, -3.82],
-            [351.06, 126.30, -3.00],
-            ...
-          ],
-          ...
-        }
-      }
-    ]
-    */
- 
-    // for (let i = 0; i < predictions.length; i++) {
-    //   const keypoints = predictions[i].scaledMesh;
- 
-    //   // Log facial keypoints.
-    //   for (let i = 0; i < keypoints.length; i++) {
-    //     const [x, y, z] = keypoints[i];
- 
-    //     console.log(`Keypoint ${i}: [${x}, ${y}, ${z}]`);
-    //   }
-    // }
-  }
 
     //glitchPass.renderToScreen = d > 0.15;
-    shaderMaterial.uniforms.time.value += 0.05;
-    //sobelPass.uniforms.threshold.value = d > 0.05 ? 500 * d * d : 0.0;
+    //shaderMaterial.uniforms.time.value += 0.05;
+    //sobelPass.uniforms.threshold.value = d > 0.15 ? 5 * d * d : 0.0;
 
     //effcomposer.render();
 
@@ -654,4 +639,4 @@ btn.addEventListener("click", async () => {
     requestAnimationFrame(animate);
   }
   requestAnimationFrame(animate);
-});
+})();
