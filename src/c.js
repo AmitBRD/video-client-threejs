@@ -211,8 +211,8 @@ btn.addEventListener("click", async () => {
     audio: false,
     video: {
       facingMode: "user",
-      width: WIDTH,
-      height: HEIGHT,
+      width: WIDTH/2,
+      height: HEIGHT/2,
     },
   });
 
@@ -274,9 +274,9 @@ btn.addEventListener("click", async () => {
     },
   };
 
-
-
-  const cgeom = new THREE.PlaneGeometry(WIDTH, HEIGHT);// new THREE.CircleGeometry( WIDTH*0.25, 32 );
+  const directionalLight = new THREE.DirectionalLight( 0xffffff, 0.5 );
+  scene.add( directionalLight );
+  const cgeom = new THREE.PlaneGeometry(WIDTH/2, HEIGHT/2);// new THREE.CircleGeometry( WIDTH*0.25, 32 );
   const material = new THREE.MeshBasicMaterial( { color: 0xffff00 } );
   const circle = new THREE.Mesh( new THREE.CircleGeometry( WIDTH*0.15, 32 ), material );
   //scene.add( circle );
@@ -286,6 +286,8 @@ btn.addEventListener("click", async () => {
     new THREE.MeshBasicMaterial({ map: texture }),);
 
   imageObject.position.setZ(-150);
+  imageObject.position.setX(-WIDTH/4);
+  imageObject.position.setY(HEIGHT/4);
   scene.add(imageObject);
 
   var plane = new THREE.Mesh(geometry, shaderMaterial);
@@ -322,7 +324,7 @@ btn.addEventListener("click", async () => {
   //SELECTIVE BLOOM PRESERVING RENDER TARGET BACKGROUND CLEARCOLOR
   
   var bloomPass = new UnrealBloomPass(new THREE.Vector2(WIDTH, HEIGHT),
-         0.5, 0., 0.3);
+         0.6, 0.2, 0.3);
   //TODO: remove imageObject from the render pass allowing selective bloom
   //effcomposer.addPass(bloomPass);
   var bloomComposer = new EffectComposer(renderer);
@@ -390,8 +392,8 @@ btn.addEventListener("click", async () => {
 
   var textGeo;
   var textMesh1;
-  const height = 1,
-        size = 80,
+  const height = 30,
+        size = 40,
         hover = 30,
 
         curveSegments = 64,
@@ -402,7 +404,7 @@ btn.addEventListener("click", async () => {
   (async () => {
     await loader.load(fontName,fnt =>{
       var font = fontLoader.parse(fnt)
-      textGeo = new THREE.TextGeometry( '1st', {
+      textGeo = new THREE.TextGeometry( 'HI!', {
         font: font,
       // size: 100,
        
@@ -427,10 +429,15 @@ btn.addEventListener("click", async () => {
     const centerOffset = - 0.5 * ( textGeo.boundingBox.max.x - textGeo.boundingBox.min.x );
 
 
-    var textMaterial = createMaterial('basic', 0xc4f735) ;
-    // new THREE.MeshBasicMaterial( 
-    //     { color: 0xc4f735 }
-    // );
+    var textMaterial = //createMaterial('basic', 0xc4f735) ;
+    new THREE.MeshToonMaterial( 
+        { color: 0xc3f746,
+         transparent:true,
+         opacity: 0.8, 
+         emissive:0xc4f730,
+         emissiveIntensity:0.5
+       }
+    );
     textGeo = new THREE.BufferGeometry().fromGeometry( textGeo );
 
   //setGradient(textGeo, cols, 'z', rev);
@@ -496,9 +503,9 @@ btn.addEventListener("click", async () => {
  
 
   async function animate() {
-    const faces = await MODEL.estimateFaces(video, false);
+    const faces = null;//await MODEL.estimateFaces(video, false);
      
-    canv.getContext("2d").clearRect(0, 0, WIDTH, HEIGHT);
+    //canv.getContext("2d").clearRect(0, 0, WIDTH, HEIGHT);
 
     if (faces && faces[0] && state) {
       d = Math.abs(320 - faces[0].landmarks[2][0]) / 320.0;
@@ -553,6 +560,7 @@ btn.addEventListener("click", async () => {
       flipHorizontal: false,
       predictIrises: false});
      }
+     canv.getContext("2d").clearRect(0, 0, WIDTH, HEIGHT);
     if (!faces && predictions.length > 0) {
       predictions.forEach(prediction => {
         faceGeometry.update(prediction, false);
@@ -560,41 +568,48 @@ btn.addEventListener("click", async () => {
         rightEye.position.copy(trackRightEye.position);
         rightEye.rotation.setFromRotationMatrix(trackRightEye.rotation);
 
-        const trackHalo = faceGeometry.track(10, 251, 21);
+         //https://github.com/google/mediapipe/blob/master/mediapipe/modules/face_geometry/data/canonical_face_model_uv_visualization.png
+        //const trackHalo = faceGeometry.track(151, 352,123);
        
         
 
-         const trackChin = faceGeometry.track(208, 428, 175);
+         //const trackHalo = faceGeometry.track(208, 428, 175);
 
            //nose
-          const track = faceGeometry.track(5, 45, 275);
-
+          const trackHalo = faceGeometry.track(5, 275,45 );
+          
+          //TODO: the constant height above (e.g. 30 ) needs to be scaled to the change in landmark position. use the face
+          //bounding box to infact track the scale change as face detection 
+          const offsetVector = new THREE.Vector3(- 0.5 * ( textGeo.boundingBox.max.x - textGeo.boundingBox.min.x ),
+            - 0.5 * ( textGeo.boundingBox.max.y - textGeo.boundingBox.min.y ) + 30);
+          offsetVector.applyMatrix4(trackHalo.rotation);
           textMesh1.position.copy(trackHalo.position);
-        //textMesh1.rotation.setFromRotationMatrix(trackHalo.rotation);
-        const centerOffset = - 0.5 * ( textGeo.boundingBox.max.x - textGeo.boundingBox.min.x );
-          textMesh1.position.setX(textMesh1.position.x + centerOffset);
-
+          //textMesh1.position.setX(textMesh1.position.x+ centerOffsetX);
+          //textMesh1.position.setY(textMesh1.position.y);
+          //textMesh1.position.setZ(textMesh1.position.z - 100);
+          //textMesh1.position.setZ(( camera.near + camera.far ) / ( camera.near - camera.far ) );
           //https://github.com/spite/FaceMeshFaceGeometry/blob/372b9e6a824af057e1a2e40b6c3b2827c7c0d410/examples/video/main.js#L207
-         
-      const keypoints = prediction.scaledMesh;
-        const GREEN = '#32EEDB';
-       const ctx = canv.getContext("2d")
-        ctx.fillStyle = GREEN;
-         const NUM_KEYPOINTS = 468;
-       
+           textMesh1.rotation.setFromRotationMatrix(trackHalo.rotation);
+           textMesh1.position.add(offsetVector);
 
+        if (state > 1) {
+          const keypoints = prediction.scaledMesh;
+          const GREEN = '#32EEDB';
+          const ctx = canv.getContext("2d")
+          ctx.fillStyle = GREEN;
+          const NUM_KEYPOINTS = 468;
+          ctx.strokeStyle = GREEN;
+          ctx.lineWidth = 0.5;
 
-        ctx.strokeStyle = GREEN;
-        ctx.lineWidth = 0.5;
+          for (let i = 0; i < indices.length / 3; i++) {
+            const points = [
+              indices[i * 3], indices[i * 3 + 1],
+              indices[i * 3 + 2]
+            ].map(index => keypoints[index]);
 
-        for (let i = 0; i < indices.length / 3; i++) {
-          const points = [
-            indices[i * 3], indices[i * 3 + 1],
-            indices[i * 3 + 2]
-          ].map(index => keypoints[index]);
-
-          //TODO: enable to see triangles on face
-          //drawPath(ctx, points, true);
+            //TODO: enable to see triangles on face
+            drawPath(ctx, points, true);
+            }
         }
       });
     /*
