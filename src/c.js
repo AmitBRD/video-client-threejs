@@ -15,13 +15,16 @@ import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { FaceMeshFaceGeometry } from "./FaceMeshFaceGeometry/face.js";
 import { FACES as indices  } from "./FaceMeshFaceGeometry/geometry.js";
+//https://ada.is/blog/2020/10/29/curve-modifiers-in-threejs/
+import { InstancedFlow } from "three/examples/jsm/modifiers/CurveModifier.js";
+import { HeartRateSocket } from "./socket.js";
+
 import TTFLoader from './TTFLoader';
-const loader = new TTFLoader();
-const fontLoader = new THREE.FontLoader();
-     //assets/fonts/Jackerton-Free-Regular.otf
-const fontName = "/fonts/FugazOne-Regular.ttf";//Jackerton-Free-Regular.otf";
 
 
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+const gltfLoader = new GLTFLoader();
+const crownModelLocation = '/model/fall_guys_crown/scene.gltf';
 
 tf.setBackend('webgl');
 const WIDTH = 640.0;
@@ -39,6 +42,13 @@ const faceLandmarksDetection = require('@tensorflow-models/face-landmarks-detect
     faceLandmarksDetection.SupportedPackages.mediapipeFacemesh,{maxFaces:1});
 
 })();
+
+let UPDATE_TEXT = false;
+let TEXT_VALUE = "";
+const socket = new HeartRateSocket("ws://127.0.0.1:8013/web-socket/", function(data){
+  UPDATE_TEXT = true;
+  TEXT_VALUE = Math.trunc(data["heartRate"])+"bpm";
+});
 
 function createMaterial(type, color) {
   let mat =
@@ -283,7 +293,7 @@ btn.addEventListener("click", async () => {
 
   var imageObject = new THREE.Mesh(
     cgeom,
-    new THREE.MeshBasicMaterial({ map: texture }),);
+    new THREE.MeshBasicMaterial({ map: texture, transparent:true, opacity:0.5 }),);
 
   imageObject.position.setZ(-150);
   imageObject.position.setX(-WIDTH/4);
@@ -390,9 +400,16 @@ btn.addEventListener("click", async () => {
 
   let d = 0;
 
+  const loader = new TTFLoader();
+  const fontLoader = new THREE.FontLoader();
+     //assets/fonts/Jackerton-Free-Regular.otf
+  const fontName = "/fonts/FugazOne-Regular.ttf";//Jackerton-Free-Regular.otf";
+
   var textGeo;
   var textMesh1;
-  const height = 30,
+  var textMaterial;
+  var font;
+  const height = 1,
         size = 40,
         hover = 30,
 
@@ -403,8 +420,8 @@ btn.addEventListener("click", async () => {
         bevelEnabled = false;
   (async () => {
     await loader.load(fontName,fnt =>{
-      var font = fontLoader.parse(fnt)
-      textGeo = new THREE.TextGeometry( 'HI!', {
+      font = fontLoader.parse(fnt)
+      textGeo = new THREE.TextGeometry( 'BRD', {
         font: font,
       // size: 100,
        
@@ -429,7 +446,7 @@ btn.addEventListener("click", async () => {
     const centerOffset = - 0.5 * ( textGeo.boundingBox.max.x - textGeo.boundingBox.min.x );
 
 
-    var textMaterial = //createMaterial('basic', 0xc4f735) ;
+    textMaterial = //createMaterial('basic', 0xc4f735) ;
     new THREE.MeshToonMaterial( 
         { color: 0xc3f746,
          transparent:true,
@@ -475,11 +492,107 @@ btn.addEventListener("click", async () => {
 
   })();
 
+  function updateText(data){
+    textMesh1.geometry.dispose();
+        //textMesh1.material.dispose();
+    scene.remove(textMesh1);
+
+
+    textGeo = new THREE.TextGeometry( data , {
+        font: font,
+      // size: 100,
+       
+      // curveSegments: 32,
+      // bevelEnabled: true,
+      // bevelThickness: 6,
+      // bevelSize: 2.5,
+      // bevelOffset: 0,
+      // bevelSegments: 8,
+           size: size,
+          height: height,
+          curveSegments: curveSegments,
+
+          bevelThickness: bevelThickness,
+          bevelSize: bevelSize,
+          bevelEnabled: bevelEnabled
+    } );
+
+      textGeo.computeBoundingBox();
+      textGeo.computeVertexNormals();
+      
+      const centerOffset = - 0.5 * ( textGeo.boundingBox.max.x - textGeo.boundingBox.min.x );
+
+
+      // new THREE.MeshBasicMaterial( 
+      //     { color: 0xc4f735 }
+      // );
+      textGeo = new THREE.BufferGeometry().fromGeometry( textGeo );
+
+    //setGradient(textGeo, cols, 'z', rev);
+    // var mat = new THREE.MeshBasicMaterial({
+    //   vertexColors: THREE.VertexColors,
+    //   wireframe: false
+    // });
+    // var obj = new THREE.Mesh(textGeo, mat);
+    //scene.add(obj);
+    textMesh1 = new THREE.Mesh( textGeo, textMaterial );
+
+          textMesh1.position.x = centerOffset;
+          textMesh1.position.y = hover;
+          textMesh1.position.z = 0;
+
+          textMesh1.rotation.x = 0;
+          //textMesh1.rotation.y = Math.PI * 2;
+
+
+    // //var fontMesh = new THREE.Mesh( textGeometry, textMaterial );
+    textMesh1.layers.enable(BLOOM_SCENE);
+    scene.add( textMesh1 );
+  }
+
+
+  // Load a glTF resource
+  gltfLoader.load(
+    // resource URL
+    crownModelLocation,
+    // called when the resource is loaded
+    function ( gltf ) {
+      gltf.scene.scale.multiplyScalar(30);
+      gltf.scene.position.z = -30; 
+
+      scene.add( gltf.scene);
+
+      // gltf.animations; // Array<THREE.AnimationClip>
+      // gltf.scene; // THREE.Group
+      // gltf.scenes; // Array<THREE.Group>
+      // gltf.cameras; // Array<THREE.Camera>
+      // gltf.asset; // Object
+
+    },
+    // called while loading is progressing
+    function ( xhr ) {
+
+      console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
+
+    },
+    // called when loading has errors
+    function ( error ) {
+
+      console.log( 'An error happened' );
+
+    }
+  );
+
   const faceGeometry = new FaceMeshFaceGeometry({ useVideoTexture: false });
   faceGeometry.setSize(WIDTH, HEIGHT);
+  // Create mask mesh.
+  const maskMaterial = new THREE.MeshToonMaterial({'color':0xff0000})
+  const mask = new THREE.Mesh(faceGeometry, maskMaterial);
+  scene.add(mask);
+  mask.receiveShadow = mask.castShadow = true;
 
-  const rightEye = new THREE.Mesh(new THREE.BoxBufferGeometry(1, 1, 1), createMaterial('basic', 0xc4f735));
-  rightEye.castShadow = rightEye.receiveShadow = true;
+  const rightEye = new THREE.Mesh(new THREE.BoxBufferGeometry(1, 1, 1), createMaterial('basic', 0xff0000 ));
+  //rightEye.castShadow = rightEye.receiveShadow = true;
   
    //TODO: if tracking face mesh
   //scene.add(rightEye);
@@ -503,8 +616,8 @@ btn.addEventListener("click", async () => {
  
 
   async function animate() {
-    const faces = null;//await MODEL.estimateFaces(video, false);
-     
+    const faces = null;
+    //await MODEL.estimateFaces(video, false); 
     //canv.getContext("2d").clearRect(0, 0, WIDTH, HEIGHT);
 
     if (faces && faces[0] && state) {
@@ -564,13 +677,16 @@ btn.addEventListener("click", async () => {
     if (!faces && predictions.length > 0) {
       predictions.forEach(prediction => {
         faceGeometry.update(prediction, false);
-        const trackRightEye = faceGeometry.track(417, 445, 450);
-        rightEye.position.copy(trackRightEye.position);
-        rightEye.rotation.setFromRotationMatrix(trackRightEye.rotation);
+        //const trackRightEye = faceGeometry.track(417, 445, 450);
+        //rightEye.position.copy(trackRightEye.position);
+        //rightEye.rotation.setFromRotationMatrix(trackRightEye.rotation);
 
          //https://github.com/google/mediapipe/blob/master/mediapipe/modules/face_geometry/data/canonical_face_model_uv_visualization.png
         //const trackHalo = faceGeometry.track(151, 352,123);
-       
+         if(UPDATE_TEXT){
+           updateText(TEXT_VALUE);
+           UPDATE_TEXT = false;
+         }
         
 
          //const trackHalo = faceGeometry.track(208, 428, 175);
@@ -580,7 +696,7 @@ btn.addEventListener("click", async () => {
           
           //TODO: the constant height above (e.g. 30 ) needs to be scaled to the change in landmark position. use the face
           //bounding box to infact track the scale change as face detection 
-          const offsetVector = new THREE.Vector3(- 0.5 * ( textGeo.boundingBox.max.x - textGeo.boundingBox.min.x ),
+          const offsetVector = new THREE.Vector3(- 0.5 * ( textGeo.boundingBox.max.x - textGeo.boundingBox.min.x ) - 80,
             - 0.5 * ( textGeo.boundingBox.max.y - textGeo.boundingBox.min.y ) + 30);
           offsetVector.applyMatrix4(trackHalo.rotation);
           textMesh1.position.copy(trackHalo.position);
