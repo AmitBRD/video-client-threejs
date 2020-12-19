@@ -7,6 +7,7 @@ module.exports = {
   entry: "./src/c.js",
   devServer: {
     contentBase: "./dist",
+    port:8001
   },
   module: {
     rules: [

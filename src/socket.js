@@ -1,8 +1,6 @@
 
 class HeartRateSocket{
   
-
-
   constructor(url,callback){
     this.socket = new WebSocket(url);
     this.callback = callback;
@@ -10,8 +8,8 @@ class HeartRateSocket{
     var cb = this.callback;
     this.socket.onopen = function(e) {
       console.log("[open] Connection established");
-      console.log("Sending to server");
-      sock.send("web ui checking in");
+      //console.log("Sending to server");
+      //sock.send("web ui checking in");
     };
 
     this.socket.onmessage = function(event) {

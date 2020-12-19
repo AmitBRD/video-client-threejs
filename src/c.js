@@ -1,6 +1,9 @@
 //import * as tf from "@tensorflow/tfjs";
 import * as tf from '@tensorflow/tfjs-core';
 import '@tensorflow/tfjs-backend-webgl';
+import '@tensorflow/tfjs-backend-wasm';
+import {setWasmPath} from '@tensorflow/tfjs-backend-wasm';
+
 import * as blazeface from "@tensorflow-models/blazeface";
 import vs from "./pos.vert";
 import shader from "./shader.frag";
@@ -20,17 +23,22 @@ import { InstancedFlow } from "three/examples/jsm/modifiers/CurveModifier.js";
 import { HeartRateSocket } from "./socket.js";
 
 import TTFLoader from './TTFLoader';
-
+require('../extmat/THREE.extendMaterial/ExtendMaterial.js');
+import {VoronoiMesh} from './voronoi.js';
 
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 const gltfLoader = new GLTFLoader();
-const crownModelLocation = '/model/fall_guys_crown/scene.gltf';
+const crownModelLocation = '/model/fall_guys_crown/scene2.gltf';
 
-tf.setBackend('webgl');
-const WIDTH = 640.0;
-const HEIGHT = 480.0;
-let MODEL = null;
-let FACE_MODEL = null;
+//tf.setBackend('webgl');
+setWasmPath({
+  'tfjs-backend-wasm.wasm': '/tfjs-wasm/tfjs-backend-wasm.wasm',
+  'tfjs-backend-wasm-simd.wasm': '/tfjs-wasm/tfjs-backend-wasm-simd.wasm',
+  'tfjs-backend-wasm-threaded-simd.wasm': '/tfjs-wasm/tfjs-backend-wasm-threaded-simd.wasm'
+  });
+
+(async()=>{ tf.setBackend('wasm') })();
+
 
 (async () => {
   MODEL = await blazeface.load();
@@ -43,12 +51,21 @@ const faceLandmarksDetection = require('@tensorflow-models/face-landmarks-detect
 
 })();
 
+
+const WIDTH = 640.0;
+const HEIGHT = 480.0;
+let MODEL = null;
+let FACE_MODEL = null;
+
+
 let UPDATE_TEXT = false;
 let TEXT_VALUE = "";
 const socket = new HeartRateSocket("ws://127.0.0.1:8013/web-socket/", function(data){
   UPDATE_TEXT = true;
-  TEXT_VALUE = Math.trunc(data["heartRate"])+"bpm";
+  TEXT_VALUE = Math.trunc( data["heartRate"])+"";
 });
+
+
 
 function createMaterial(type, color) {
   let mat =
@@ -61,54 +78,11 @@ function createMaterial(type, color) {
     mat.metalness = 0.25;
     mat.roughness = 0.75;
   }
-
-  // mat.onBeforeCompile = function(shader) {
-  //   shader.uniforms.time = { value: 1.0 };
-  //   shader.uniforms.isTip = { value: 0.0 };
-
-  //   shader.vertexShader =
-  //     `uniform float time;
-  //    uniform float isTip;
-  //    attribute vec3 instPosition;
-  //    attribute vec2 instUv;
-  //   ` +
-  //     noise + // see the script in the html-section
-  //     shader.vertexShader;
-  //   shader.vertexShader = shader.vertexShader.replace(
-  //     `#include <begin_vertex>`,
-  //     `
-  //     vec3 transformed = vec3( position );
-
-  //     vec3 ip = instPosition;
-  //     vec2 iUv = instUv;
-  //     iUv.y += time * 0.125;
-  //     iUv *= vec2(3.14);
-  //     float wave = snoise( vec3( iUv, 0.0 ) );
-
-  //     ip.y = wave * 3.5;
-  //     float lim = 2.0;
-  //     bool tip = isTip < 0.5 ? ip.y > lim : ip.y <= lim;
-  //     transformed *= tip ? 0.0 : 1.0;
-
-  //     transformed = transformed + ip;
-  //   `
-  //   );
-  //   materialShaders.push({
-  //     id: "mat" + materialShaders.length,
-  //     shader: shader,
-  //     isTip: isTip,
-  //     changeColor: changeColor
-  //   });
-  //   materialInst.push(mat);
-  // };
   
   return mat;
 }
 
 const darkMaterial = createMaterial("basic", 0x000000);
-
-
-
 
 const style = document.createElement("style");
 style.innerHTML = `ul {
@@ -148,6 +122,7 @@ style.innerHTML = `ul {
       left: 0;
   }
 `;
+
 document.head.appendChild(style);
 
 const menu = document.createElement("ul");
@@ -174,7 +149,7 @@ document.body.appendChild(btnMinus);
 
 const video = document.createElement("video");
 video.style = "float:left;display:none;";
-document.body.appendChild(video);
+//document.body.appendChild(video);
 
 const gl_div = document.createElement("div");
 gl_div.width = WIDTH;
@@ -221,8 +196,8 @@ btn.addEventListener("click", async () => {
     audio: false,
     video: {
       facingMode: "user",
-      width: WIDTH/2,
-      height: HEIGHT/2,
+      width: WIDTH,
+      height: HEIGHT,
     },
   });
 
@@ -286,7 +261,7 @@ btn.addEventListener("click", async () => {
 
   const directionalLight = new THREE.DirectionalLight( 0xffffff, 0.5 );
   scene.add( directionalLight );
-  const cgeom = new THREE.PlaneGeometry(WIDTH/2, HEIGHT/2);// new THREE.CircleGeometry( WIDTH*0.25, 32 );
+  const cgeom = new THREE.PlaneGeometry(WIDTH, HEIGHT);// new THREE.CircleGeometry( WIDTH*0.25, 32 );
   const material = new THREE.MeshBasicMaterial( { color: 0xffff00 } );
   const circle = new THREE.Mesh( new THREE.CircleGeometry( WIDTH*0.15, 32 ), material );
   //scene.add( circle );
@@ -296,8 +271,8 @@ btn.addEventListener("click", async () => {
     new THREE.MeshBasicMaterial({ map: texture, transparent:true, opacity:0.5 }),);
 
   imageObject.position.setZ(-150);
-  imageObject.position.setX(-WIDTH/4);
-  imageObject.position.setY(HEIGHT/4);
+  //imageObject.position.setX(-WIDTH);
+  //imageObject.position.setY(HEIGHT);
   scene.add(imageObject);
 
   var plane = new THREE.Mesh(geometry, shaderMaterial);
@@ -409,7 +384,7 @@ btn.addEventListener("click", async () => {
   var textMesh1;
   var textMaterial;
   var font;
-  const height = 1,
+  const height = 4,
         size = 40,
         hover = 30,
 
@@ -492,7 +467,13 @@ btn.addEventListener("click", async () => {
 
   })();
 
+  //Add voronoi tesselation
+  const voronoiMesh = new VoronoiMesh(WIDTH,HEIGHT,2, null);
+  //scene.add(voronoiMesh.bufferMesh);
+  debugger;
+
   function updateText(data){
+    //return;
     textMesh1.geometry.dispose();
         //textMesh1.material.dispose();
     scene.remove(textMesh1);
@@ -552,14 +533,26 @@ btn.addEventListener("click", async () => {
 
 
   // Load a glTF resource
+  /*
   gltfLoader.load(
     // resource URL
     crownModelLocation,
     // called when the resource is loaded
     function ( gltf ) {
+      // const crown = gltf.scene.children[3];
+
+      let crown = null;
+      gltf.scene.traverse(function(child){ 
+      if(child.name === "Cylinder_2"){
+        crown = child;
+      } 
+
+      });
       gltf.scene.scale.multiplyScalar(30);
       gltf.scene.position.z = -30; 
-
+      //  crown.scale.multiplyScalar(30);
+      //  crown.scale.position.set(new THREE.Vector3());
+      //  crown.layers.enable(BLOOM_SCENE);
       scene.add( gltf.scene);
 
       // gltf.animations; // Array<THREE.AnimationClip>
@@ -567,7 +560,7 @@ btn.addEventListener("click", async () => {
       // gltf.scenes; // Array<THREE.Group>
       // gltf.cameras; // Array<THREE.Camera>
       // gltf.asset; // Object
-
+      debugger;
     },
     // called while loading is progressing
     function ( xhr ) {
@@ -582,21 +575,15 @@ btn.addEventListener("click", async () => {
 
     }
   );
-
+  */
   const faceGeometry = new FaceMeshFaceGeometry({ useVideoTexture: false });
   faceGeometry.setSize(WIDTH, HEIGHT);
   // Create mask mesh.
-  const maskMaterial = new THREE.MeshToonMaterial({'color':0xff0000})
+  const maskMaterial = new THREE.MeshToonMaterial({'color':0xff0000, transparent: true, opacity:0.1})
   const mask = new THREE.Mesh(faceGeometry, maskMaterial);
   scene.add(mask);
   mask.receiveShadow = mask.castShadow = true;
 
-  const rightEye = new THREE.Mesh(new THREE.BoxBufferGeometry(1, 1, 1), createMaterial('basic', 0xff0000 ));
-  //rightEye.castShadow = rightEye.receiveShadow = true;
-  
-   //TODO: if tracking face mesh
-  //scene.add(rightEye);
-  rightEye.scale.setScalar(20);
 
   function drawPath(ctx, points, closePath) {
   const region = new Path2D();
@@ -616,8 +603,7 @@ btn.addEventListener("click", async () => {
  
 
   async function animate() {
-    const faces = null;
-    //await MODEL.estimateFaces(video, false); 
+    const faces = null;//await MODEL.estimateFaces(video, false); 
     //canv.getContext("2d").clearRect(0, 0, WIDTH, HEIGHT);
 
     if (faces && faces[0] && state) {
@@ -644,7 +630,7 @@ btn.addEventListener("click", async () => {
       }
 
       const vector = new THREE.Vector3();
-      const scale =  ((faces[0].bottomRight[0] - faces[0].topLeft[0])/(WIDTH/2));
+      const scale =  1;//((faces[0].bottomRight[0] - faces[0].topLeft[0])/(WIDTH/2));
       textMesh1.scale.set(scale,scale,1);
 
       const scaleOffset =  textMesh1.position.clone().multiplyScalar(scale);
@@ -781,7 +767,7 @@ btn.addEventListener("click", async () => {
     renderBloom();
   // render the entire scene, then render bloom scene on top
     finalComposer.render();
-
+    
     requestAnimationFrame(animate);
   }
   requestAnimationFrame(animate);
