@@ -2,7 +2,9 @@ import Voronoi from 'Voronoi';
 const random = require('random');
 import * as THREE from "three";
 
-
+const uv_map_texture = new THREE.TextureLoader().load( '/model/uv_mapping.jpeg' );
+uv_map_texture.repeat.set(.0045,.0045);
+uv_map_texture.wrapS = uv_map_texture.wrapT = THREE.RepeatWrapping;
 //https://github.com/nayrrod/voronoi-fracture/
 class VoronoiMesh{
 	constructor(width,height,cell_count, options){
@@ -21,8 +23,10 @@ class VoronoiMesh{
 	    // Extrude these shapes into actual geometry
 	    let geomArray = extrudeShapes(shapeArray)
 
+
 	    // Put every geometry in a single buffer mesh with custom shader material
 	    this.bufferMesh = getBufferMesh(geomArray)
+        this.shapeGeometryArray = shapeGeometry(shapeArray);
 	    
 	}
 
@@ -93,6 +97,46 @@ function extrudeShapes(shapeArray) {
         geomArray.push(cellGeom)
     }
     return geomArray
+}
+
+function shapeGeometry(shapeArray){
+    
+    
+    const extrudeSettings = {
+        amount: 1,
+        bevelEnabled: false,
+        bevelSegments: 0,
+        steps: 50,
+        bevelSize: 0,
+        bevelThickness: 0
+    }
+
+    let geomArray = []
+
+    for (let i = 0; i < shapeArray.length; i++) {
+        const material = new THREE.MeshBasicMaterial( { /*transparent:true, opacity:0.5,*/ map:uv_map_texture} );
+        let cellGeom = new THREE.ShapeGeometry(shapeArray[i], extrudeSettings)
+        cellGeom.computeBoundingBox()
+        var center = new THREE.Vector3();
+        cellGeom.boundingBox.getCenter(center);
+        var cellBBox = cellGeom.boundingBox
+        var cellCenter = {
+            x: cellBBox.min.x + (cellBBox.max.x - cellBBox.min.x) / 2,
+            y: cellBBox.min.y + (cellBBox.max.y - cellBBox.min.y) / 2,
+            z: cellBBox.min.z + (cellBBox.max.z - cellBBox.min.z) / 2
+        }
+
+        cellGeom.center();
+        let mesh = new THREE.Mesh(cellGeom, material);
+        //mesh.material.color.setHex(Math.random() * 0xffffff );
+        //mesh.geometry.boundingBox.getCenter(center);
+        cellGeom.cellCenter = cellCenter
+        mesh.position.copy(center);
+        geomArray.push(mesh);
+    }
+    return geomArray;
+    
+
 }
 
 function getBufferMesh(geomArray) {
@@ -170,16 +214,18 @@ function getBufferMesh(geomArray) {
     // shaderMaterial.uniforms.resolution.value.x = width
     // shaderMaterial.uniforms.resolution.value.y = height
 
-    // new THREE.MeshToonMaterial( 
-    //     { color: 0xc3f746,
-    //      transparent:true,
-    //      opacity: 0.2, 
-    //      emissive:0xc4f730,
-    //      emissiveIntensity:0.5,
-    //      //wireframe:true
-    //    }
-    // )
-    var bufferMesh = new THREE.Mesh(bufferGeometry, new THREE.MeshNormalMaterial({wireframe:true}));
+    var toon = new THREE.MeshToonMaterial( 
+        { color: 0xc3f746,
+         transparent:true,
+         opacity: 0.2, 
+         emissive:0xc4f730,
+         emissiveIntensity:0.5,
+         wireframe:true,
+         map:uv_map_texture
+       }
+    )
+    //const material = new THREE.MeshBasicMaterial( { /*transparent:true, opacity:0.5,*/ map:uv_map_texture} );
+    var bufferMesh = new THREE.Mesh(bufferGeometry,toon);// new THREE.MeshNormalMaterial({wireframe:false}));
     return bufferMesh
 }
 
